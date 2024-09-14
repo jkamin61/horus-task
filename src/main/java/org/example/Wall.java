@@ -2,7 +2,7 @@ package org.example;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.ArrayList;
+import java.util.stream.Stream;
 
 public class Wall implements Structure {
     private final List<Block> blocks;
@@ -13,55 +13,35 @@ public class Wall implements Structure {
 
     @Override
     public Optional<Block> findBlockByColor(String color) {
-        return findBlockByColor(color, blocks);
-    }
-
-    private Optional<Block> findBlockByColor(String color, List<Block> blocks) {
-        for (Block block : blocks) {
-            if (block.getColor().equals(color)) {
-                return Optional.of(block);
-            }
-            if (block instanceof CompositeBlock) {
-                Optional<Block> found = findBlockByColor(color, ((CompositeBlock) block).getBlocks());
-                if (found.isPresent()) {
-                    return found;
-                }
-            }
-        }
-        return Optional.empty();
+        return blocks.stream()
+                .flatMap(this::flatten)
+                .filter(block -> block.getColor().equals(color))
+                .findAny();
     }
 
     @Override
     public List<Block> findBlocksByMaterial(String material) {
-        List<Block> result = new ArrayList<>();
-        findBlocksByMaterial(material, blocks, result);
-        return result;
-    }
-
-    private void findBlocksByMaterial(String material, List<Block> blocks, List<Block> result) {
-        for (Block block : blocks) {
-            if (block.getMaterial().equals(material)) {
-                result.add(block);
-            }
-            if (block instanceof CompositeBlock) {
-                findBlocksByMaterial(material, ((CompositeBlock) block).getBlocks(), result);
-            }
-        }
+        return blocks.stream()
+                .flatMap(this::flatten)
+                .filter(block -> block.getMaterial().equals(material))
+                .toList();
     }
 
     @Override
     public int count() {
-        return count(blocks);
+        return (int) blocks.stream()
+                .flatMap(this::flatten)
+                .count();
     }
 
-    private int count(List<Block> blocks) {
-        int totalCount = 0;
-        for (Block block : blocks) {
-            totalCount++;
-            if (block instanceof CompositeBlock) {
-                totalCount += count(((CompositeBlock) block).getBlocks());
-            }
+    private Stream<Block> flatten(Block block) {
+        if (block instanceof CompositeBlock) {
+            return Stream.concat(
+                    Stream.of(block),
+                    ((CompositeBlock) block).getBlocks().stream().flatMap(this::flatten)
+            );
+        } else {
+            return Stream.of(block);
         }
-        return totalCount;
     }
 }
